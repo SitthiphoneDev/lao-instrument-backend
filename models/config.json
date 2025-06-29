@@ -1,0 +1,74 @@
+{
+    "SAMPLE_RATE": 44100,
+    "SEGMENT_DURATION": 6.0,
+    "N_FFT": 2048,
+    "HOP_LENGTH": 512,
+    "N_MELS": 128,
+    "FMAX": 8000,
+    "USE_AUGMENTATION": true,
+    "USE_TARGETED_AUGMENTATION": true,
+    "KHEAN_AUGMENTATION_MULTIPLIER": 3.0,
+    "PIN_AUGMENTATION_MULTIPLIER": 2.5,
+    "UNKNOWN_AUGMENTATION_MULTIPLIER": 2.0,
+    "BATCH_SIZE": 32,
+    "EPOCHS": 60,
+    "LEARNING_RATE": 0.0004,
+    "EARLY_STOPPING_PATIENCE": 12,
+    "USE_SMART_CLASS_WEIGHTS": true,
+    "CUSTOM_CLASS_WEIGHTS": {
+        "khean": 2.0,
+        "khong_vong": 1.0,
+        "pin": 1.8,
+        "ranad": 1.0,
+        "saw": 0.7,
+        "sing": 1.0,
+        "unknown": 1.4
+    },
+    "DROPOUT_RATE": 0.4,
+    "L2_REGULARIZATION": 0.006,
+    "LABEL_SMOOTHING": 0.05,
+    "K_FOLDS": 3,
+    "USE_KFOLD": true,
+    "TEST_SIZE": 0.2,
+    "RANDOM_SEED": 42,
+    "DATA_PATH": "dataset",
+    "MODEL_SAVE_PATH": "models/quick_fix_model",
+    "INSTRUMENT_MAPPING": {
+        "khean": [
+            "khean",
+            "khaen",
+            "\u0e41\u0e04\u0e19",
+            "\u0ec1\u0e84\u0e99"
+        ],
+        "khong_vong": [
+            "khong",
+            "kong",
+            "\u0e84\u0ec9\u0ead\u0e87\u0ea7\u0ebb\u0e87",
+            "khong_vong"
+        ],
+        "pin": [
+            "pin",
+            "\u0e9e\u0eb4\u0e99"
+        ],
+        "ranad": [
+            "ranad",
+            "nad",
+            "\u0ea5\u0eb0\u0e99\u0eb2\u0e94"
+        ],
+        "saw": [
+            "saw",
+            "so",
+            "\u0e8a\u0ecd",
+            "\u0e8a\u0ecd\u0ead\u0eb9\u0ec9"
+        ],
+        "sing": [
+            "sing",
+            "\u0e8a\u0eb4\u0ec8\u0e87"
+        ],
+        "unknown": [
+            "unknown",
+            "other",
+            "misc"
+        ]
+    }
+}
