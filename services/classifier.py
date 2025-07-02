@@ -21,6 +21,9 @@ class InstrumentClassifier:
         self.idx_to_label = None
         self.model_loaded = False
         
+        # Confidence threshold for unknown classification
+        self.UNKNOWN_CONFIDENCE_THRESHOLD = 0.7  # 70%
+        
     def load_model(self) -> Tuple[bool, str]:
         """Load enhanced ONNX model and label mapping"""
         try:
@@ -58,6 +61,7 @@ class InstrumentClassifier:
             logger.info(f"Enhanced model loaded successfully from {self.model_path}")
             logger.info(f"Model input shape: {input_shape}")
             logger.info(f"Available classes: {list(self.idx_to_label.values())}")
+            logger.info(f"Unknown confidence threshold set to: {self.UNKNOWN_CONFIDENCE_THRESHOLD:.1%}")
             
             return True, f"Enhanced model loaded successfully (input shape: {input_shape})"
             
@@ -69,6 +73,7 @@ class InstrumentClassifier:
                         confidence_threshold: float = 0.4) -> Optional[Dict]:
         """
         Make ensemble prediction with enhanced multi-channel features
+        Returns 'unknown' if confidence < 70%
         """
         if not self.model_loaded:
             return None
@@ -125,10 +130,19 @@ class InstrumentClassifier:
             else:
                 ensemble_probs = predictions[0]
             
-            # Final prediction
+            # Get initial prediction
             max_prob_idx = np.argmax(ensemble_probs)
             max_prob = ensemble_probs[max_prob_idx]
-            instrument = self.idx_to_label[max_prob_idx]
+            original_instrument = self.idx_to_label[max_prob_idx]
+            
+            # 🎯 CONFIDENCE THRESHOLD CHECK - Force to 'unknown' if confidence < 70%
+            if max_prob < self.UNKNOWN_CONFIDENCE_THRESHOLD:
+                instrument = 'unknown'
+                confidence_override = True
+                logger.info(f"Confidence {max_prob:.3f} < {self.UNKNOWN_CONFIDENCE_THRESHOLD:.1%}, returning 'unknown' (original: {original_instrument})")
+            else:
+                instrument = original_instrument
+                confidence_override = False
             
             # Calculate enhanced uncertainty metrics
             entropy = -np.sum(ensemble_probs * np.log2(ensemble_probs + 1e-10)) / np.log2(len(ensemble_probs))
@@ -137,7 +151,8 @@ class InstrumentClassifier:
             # Enhanced uncertainty detection
             is_uncertain = (entropy > 0.6 or 
                           max_prob < confidence_threshold or 
-                          prediction_std > 0.15)
+                          prediction_std > 0.15 or
+                          confidence_override)  # Add confidence override flag
             
             # Use the best segment's features for visualization
             best_segment_idx = np.argmax(confidences)
@@ -148,12 +163,12 @@ class InstrumentClassifier:
             
             # Check if this is a difficult instrument (khean, pin, saw)
             difficult_instruments = ['khean', 'pin', 'saw']
-            is_difficult = instrument in difficult_instruments
+            is_difficult = original_instrument in difficult_instruments  # Use original prediction for difficulty analysis
             
             # Enhanced result with multi-channel analysis
             result = {
-                'instrument': instrument,
-                'confidence': float(max_prob),
+                'instrument': instrument,  # This will be 'unknown' if confidence < 70%
+                'confidence': float(max_prob),  # Keep original confidence for transparency
                 'entropy': float(entropy),
                 'prediction_std': float(prediction_std),
                 'is_uncertain': is_uncertain,
@@ -168,13 +183,17 @@ class InstrumentClassifier:
                     'hpss_enabled': Config.USE_HPSS
                 },
                 'confidence_category': self._get_confidence_category(max_prob, entropy, prediction_std),
-                'processing_time_ms': processing_time
+                'processing_time_ms': processing_time,
+                # 🆕 NEW FIELDS for transparency
+                'confidence_override': confidence_override,
+                'original_prediction': original_instrument if confidence_override else instrument,
+                'confidence_threshold_used': self.UNKNOWN_CONFIDENCE_THRESHOLD
             }
             
-            # Add analysis for difficult instruments
-            if is_difficult:
+            # Add analysis for difficult instruments (use original prediction)
+            if is_difficult and not confidence_override:  # Only analyze if not overridden to unknown
                 result['difficulty_analysis'] = self._analyze_difficult_instrument(
-                    instrument, ensemble_probs, best_features['feature_dict']
+                    original_instrument, ensemble_probs, best_features['feature_dict']
                 )
             
             return result
@@ -184,8 +203,10 @@ class InstrumentClassifier:
             return None
     
     def _get_confidence_category(self, confidence: float, entropy: float, std: float) -> str:
-        """Enhanced confidence categorization"""
-        if confidence > 0.85 and entropy < 0.3 and std < 0.08:
+        """Enhanced confidence categorization with unknown threshold"""
+        if confidence < self.UNKNOWN_CONFIDENCE_THRESHOLD:
+            return "Unknown (Low Confidence)"
+        elif confidence > 0.85 and entropy < 0.3 and std < 0.08:
             return "Very High"
         elif confidence > 0.7 and entropy < 0.5 and std < 0.12:
             return "High"
@@ -252,4 +273,5 @@ class InstrumentClassifier:
                 return "Balanced harmonic-percussive ratio typical for bowed instruments"
             else:
                 return "Unusual ratio for saw - check bow technique"
+        
         return "Analysis not available for this instrument"
